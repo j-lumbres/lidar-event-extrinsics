@@ -169,6 +169,10 @@ class TimedEventMaps:
         self.count_cap = count_cap
         self.maps = {}
 
+    def clear(self):
+        """Drop the cached maps, for example before trying a new time offset."""
+        self.maps = {}
+
     def map_for_bin(self, bin_index):
         if bin_index in self.maps:
             return self.maps[bin_index]

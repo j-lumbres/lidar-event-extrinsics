@@ -216,3 +216,32 @@ def calibrate(sweeps, camera, T_start, rotation_only=False, time_offset_us=0):
         rotation_only=rotation_only,
         time_offset_us=time_offset_us,
     )
+
+
+def calibrate_with_time_offset(sweeps, camera, T_start, offsets_us):
+    """Calibrate the rotation at each time offset and return the results for all of them.
+
+    The offset and the rotation are estimated together: for every candidate offset
+    the rotation is calibrated from scratch, and the pair with the highest score
+    wins. A wrong offset makes the best rotation wrong as well, so fixing one and
+    then fitting the other would carry the first error into the second.
+
+    The event maps are rebuilt for each offset and dropped afterwards, since keeping
+    the maps for every offset would not fit in memory. The sweeps must have been
+    prepared with an event margin that covers the largest offset.
+
+    Returns a list of (offset_us, T_event_from_lidar, score), one per offset.
+    """
+    results = []
+    for offset_us in offsets_us:
+        for sweep in sweeps:
+            sweep.maps.clear()
+
+        T_found, history = calibrate(
+            sweeps, camera, T_start, rotation_only=True, time_offset_us=int(offset_us)
+        )
+        results.append((int(offset_us), T_found, history[-1][1]))
+
+    for sweep in sweeps:
+        sweep.maps.clear()
+    return results

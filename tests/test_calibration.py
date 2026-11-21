@@ -3,6 +3,7 @@ import numpy as np
 from lidar_event_extrinsics.calibration import (
     SweepEdges,
     calibrate,
+    calibrate_with_time_offset,
     search_extrinsic,
     total_score,
 )
@@ -130,3 +131,16 @@ def test_time_offset_moves_points_away_from_their_events():
     in_sync = total_score(sweeps, CAMERA, T_TRUE, time_offset_us=0)
     offset = total_score(sweeps, CAMERA, T_TRUE, time_offset_us=20_000)
     assert in_sync > offset
+
+
+def test_calibrate_with_time_offset_prefers_the_synced_offset():
+    sweeps = [make_sweep_edges(make_scene_points())]
+    error = make_transform(rotation_from_axis_angle(np.radians([1.0, -1.0, 0.5])), np.zeros(3))
+
+    results = calibrate_with_time_offset(sweeps, CAMERA, error @ T_TRUE, [-20_000, 0, 20_000])
+
+    offsets = [offset for offset, _, _ in results]
+    scores = [score for _, _, score in results]
+    assert offsets[int(np.argmax(scores))] == 0
+    best_T = results[int(np.argmax(scores))][1]
+    assert rotation_angle_deg((best_T @ invert(T_TRUE))[:3, :3]) < 0.3
