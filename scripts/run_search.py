@@ -26,7 +26,9 @@ from lidar_event_extrinsics.vector import (
 DATA_DIR = Path(os.environ.get("VECTOR_DIR", Path(__file__).parents[1] / "data" / "raw" / "vector"))
 SWEEP_STEP = 10
 
-files = sequence_files(DATA_DIR)
+SEQUENCE = os.environ.get("VECTOR_SEQUENCE", "school_scooter1")
+
+files = sequence_files(DATA_DIR, SEQUENCE)
 camera = load_event_camera(files["calib"])
 extrinsics = load_extrinsics(files["calib"])
 ground_truth = load_ground_truth(files["ground_truth"])

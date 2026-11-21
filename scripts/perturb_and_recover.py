@@ -42,7 +42,9 @@ if ROTATION_ONLY:
     TRANSLATION_SIZES_M = []
     COMBINED_SIZES = []
 
-files = sequence_files(DATA_DIR)
+SEQUENCE = os.environ.get("VECTOR_SEQUENCE", "school_scooter1")
+
+files = sequence_files(DATA_DIR, SEQUENCE)
 camera = load_event_camera(files["calib"])
 T_faro = load_extrinsics(files["calib"])["T_event_from_lidar_faro"]
 ground_truth = load_ground_truth(files["ground_truth"])

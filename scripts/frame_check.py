@@ -32,7 +32,9 @@ SWEEP_STEP = 10  # score every 10th sweep, about one per second
 EVENT_MARGIN_US = 5_000
 MIN_EDGE_POINTS = 50
 
-files = sequence_files(DATA_DIR)
+SEQUENCE = os.environ.get("VECTOR_SEQUENCE", "school_scooter1")
+
+files = sequence_files(DATA_DIR, SEQUENCE)
 camera = load_event_camera(files["calib"])
 extrinsics = load_extrinsics(files["calib"])
 ground_truth = load_ground_truth(files["ground_truth"])
