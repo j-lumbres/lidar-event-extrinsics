@@ -100,6 +100,20 @@ Their final scores have a median of 2.198, above the 2.152 of the run started fr
 
 The peak sits about 1.8° from FARO and 1.5° from CAD. At the event camera focal length of 327 px, that moves edges by 3 to 7 px in an overlay, too little to judge by eye which one fits the events better. This test shows that the search finds the same answer from different starts. It cannot show whether that answer is the true extrinsic, because the score could favor a slightly wrong rotation, for example through the weighting of edges that the event camera never sees. The translation has to come from somewhere other than edge alignment in this sequence.
 
+## Second sequence
+
+To check whether the peak on `school_scooter1` is a FARO error or a quirk of the score, the same 20 rotation-only trials ran on `corridors_dolly1` (920 sweeps over 92 s, every 10th used). It is a slower dolly run, at a median of 0.9 m/s against 2.6 m/s on the scooter, with the same rig and the same calibration files.
+
+| Axis | `school_scooter1` | `corridors_dolly1` | CAD relative to FARO |
+|---|---|---|---|
+| x (pitch) | -1.16° | +0.02° | -0.36° |
+| y (yaw) | -0.52° | -0.76° | -0.69° |
+| z (roll) | -1.20° | -1.63° | +0.01° |
+
+The table gives the median rotation from FARO over each set of trials. On `corridors_dolly1` the middle half of the trials spans 0.39° in pitch, 0.24° in yaw, and 0.93° in roll, and at 3° starts 3 of 5 trials land within 0.5° of the run started from FARO.
+
+Yaw and roll move the same way on both sequences. Yaw lands at -0.5° to -0.8°, close to the CAD value of -0.69°, which suggests the FARO yaw is off by about that much. Roll lands at -1.2° to -1.6° on both, but it is the loosest axis in every test, so that agreement is weaker evidence. Pitch disagrees by 1.2°, so the -1.2° pitch on `school_scooter1` is not a property of the rig. The faster, bumpier scooter run is a likely cause, since motion that the score does not model would show up there first.
+
 ## Tests
 
 ```
