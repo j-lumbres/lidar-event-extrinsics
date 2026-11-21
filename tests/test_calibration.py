@@ -84,3 +84,39 @@ def test_calibrate_recovers_a_larger_rotation():
 
     remaining = T_found @ invert(T_TRUE)
     assert rotation_angle_deg(remaining[:3, :3]) < 0.3
+
+
+def mean_pixel_difference(scene_points, T_a, T_b):
+    uv_a, _, visible_a = CAMERA.project(apply(T_a, scene_points))
+    uv_b, _, visible_b = CAMERA.project(apply(T_b, scene_points))
+    both = visible_a & visible_b
+    return np.mean(np.linalg.norm(uv_a[both] - uv_b[both], axis=1))
+
+
+def test_calibrate_recovers_rotation_and_translation_to_a_pixel():
+    # The score reads whole pixels, and a small rotation and a small shift can move
+    # the edges almost the same way. The fair check is therefore how far the scene
+    # lands from where the true extrinsic puts it, not the six numbers one by one.
+    scene_points = make_scene_points()
+    sweeps = [make_sweep_edges(scene_points)]
+    error = make_transform(
+        rotation_from_axis_angle(np.radians([1.0, 0.5, -1.0])), [0.03, -0.02, 0.04]
+    )
+    T_start = error @ T_TRUE
+
+    T_found, _ = calibrate(sweeps, CAMERA, T_start)
+
+    assert mean_pixel_difference(scene_points, T_start, T_TRUE) > 2.5
+    assert mean_pixel_difference(scene_points, T_found, T_TRUE) < 1.0
+
+
+def test_rotation_only_keeps_the_start_translation():
+    sweeps = [make_sweep_edges(make_scene_points())]
+    error = make_transform(rotation_from_axis_angle(np.radians([1.0, -1.0, 0.5])), np.zeros(3))
+    T_start = error @ T_TRUE
+
+    T_found, _ = calibrate(sweeps, CAMERA, T_start, rotation_only=True)
+
+    correction = T_found @ invert(T_start)
+    np.testing.assert_allclose(correction[:3, 3], 0.0, atol=1e-12)
+    assert rotation_angle_deg((T_found @ invert(T_TRUE))[:3, :3]) < 0.3

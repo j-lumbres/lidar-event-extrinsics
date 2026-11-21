@@ -116,6 +116,7 @@ def search_extrinsic(
     min_rotation_step_deg=0.1,
     min_translation_step_m=0.005,
     max_evaluations=2000,
+    rotation_only=False,
 ):
     """Coordinate search, rotation first, then translation, then all six together.
 
@@ -146,6 +147,10 @@ def search_extrinsic(
         # The joint stage starts small, since both parts are already close.
         ("all", [0, 1, 2, 3, 4, 5], 0.25),
     ]
+    if rotation_only:
+        # Edges alone barely constrain translation, and a free translation drags
+        # the rotation along with it, so the translation can be held at its start.
+        stages = [("rotation", [0, 1, 2], 1.0)]
 
     for _, active, start_fraction in stages:
         steps = start_steps * start_fraction
@@ -172,7 +177,9 @@ def search_extrinsic(
     return corrected_extrinsic(T_start, correction), history
 
 
-def calibrate(sweeps, camera, T_start):
+def calibrate(sweeps, camera, T_start, rotation_only=False):
     """Grid search over rotation, then the local search from the best grid point."""
     grid_correction, _ = grid_search_rotation(sweeps, camera, T_start)
-    return search_extrinsic(sweeps, camera, T_start, start_correction=grid_correction)
+    return search_extrinsic(
+        sweeps, camera, T_start, start_correction=grid_correction, rotation_only=rotation_only
+    )
