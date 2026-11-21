@@ -31,14 +31,19 @@ MIN_EDGE_POINTS = 50
 class SweepEdges:
     """The edge points of one sweep and the event maps to score them against."""
 
+    stamp_us: int
     points: np.ndarray  # (M, 3) lidar frame
     times_us: np.ndarray  # (M,)
     weights: np.ndarray  # (M,)
     maps: TimedEventMaps
 
 
-def prepare_sweeps(files, stamps_us, camera, gamma=0.9):
-    """Load each sweep, keep only its weighted edge points, and attach its events."""
+def prepare_sweeps(files, stamps_us, camera, gamma=0.9, event_margin_us=10_000):
+    """Load each sweep, keep only its weighted edge points, and attach its events.
+
+    event_margin_us is how far before and after the revolution events are kept. It
+    has to cover the event window and any time offset that will be tried.
+    """
     sweeps = []
     for stamp_us in stamps_us:
         sweep = load_lidar_sweep(files["lidar"], stamp_us)
@@ -46,11 +51,16 @@ def prepare_sweeps(files, stamps_us, camera, gamma=0.9):
         is_edge = weights > 0
 
         # Events for the whole revolution plus a margin for the event windows.
-        events = load_events(files["events"], sweep.stamp_us - 10_000, sweep.stamp_us + 110_000)
+        events = load_events(
+            files["events"],
+            sweep.stamp_us - event_margin_us,
+            sweep.stamp_us + 100_000 + event_margin_us,
+        )
         maps = TimedEventMaps(events, camera.width, camera.height, kind="idt", gamma=gamma)
 
         sweeps.append(
             SweepEdges(
+                stamp_us=sweep.stamp_us,
                 points=sweep.xyz[is_edge],
                 times_us=sweep.point_time_us[is_edge],
                 weights=weights[is_edge],
@@ -60,18 +70,23 @@ def prepare_sweeps(files, stamps_us, camera, gamma=0.9):
     return sweeps
 
 
-def sweep_score(sweep, camera, T_event_from_lidar):
-    """Edge score of one sweep, or NaN if too few edge points land in the image."""
+def sweep_score(sweep, camera, T_event_from_lidar, time_offset_us=0):
+    """Edge score of one sweep, or NaN if too few edge points land in the image.
+
+    time_offset_us is added to the LiDAR point times before they are matched with
+    events. A positive offset compares each point with later events.
+    """
     points_event = apply(T_event_from_lidar, sweep.points)
     uv, _, visible = camera.project(points_event)
     if np.count_nonzero(visible) < MIN_EDGE_POINTS:
         return np.nan
-    return sweep.maps.score(uv[visible], sweep.times_us[visible], sweep.weights[visible])
+    shifted_times_us = sweep.times_us[visible] + time_offset_us
+    return sweep.maps.score(uv[visible], shifted_times_us, sweep.weights[visible])
 
 
-def total_score(sweeps, camera, T_event_from_lidar):
+def total_score(sweeps, camera, T_event_from_lidar, time_offset_us=0):
     """Mean edge score over all sweeps, so each sweep counts equally."""
-    scores = [sweep_score(sweep, camera, T_event_from_lidar) for sweep in sweeps]
+    scores = [sweep_score(sweep, camera, T_event_from_lidar, time_offset_us) for sweep in sweeps]
     return np.nanmean(scores)
 
 
@@ -82,7 +97,9 @@ def corrected_extrinsic(T_start, correction):
     return delta @ T_start
 
 
-def grid_search_rotation(sweeps, camera, T_start, half_range_deg=4.0, step_deg=1.0):
+def grid_search_rotation(
+    sweeps, camera, T_start, half_range_deg=4.0, step_deg=1.0, time_offset_us=0
+):
     """Try every rotation correction on a coarse grid and return the best one.
 
     The score has small bumps, and a local search started from a bad guess stops on
@@ -99,7 +116,8 @@ def grid_search_rotation(sweeps, camera, T_start, half_range_deg=4.0, step_deg=1
         for angle_y in angles:
             for angle_z in angles:
                 correction = np.array([angle_x, angle_y, angle_z, 0.0, 0.0, 0.0])
-                score = total_score(sweeps, camera, corrected_extrinsic(T_start, correction))
+                T_candidate = corrected_extrinsic(T_start, correction)
+                score = total_score(sweeps, camera, T_candidate, time_offset_us)
                 if score > best_score:
                     best_score = score
                     best_correction = correction
@@ -117,6 +135,7 @@ def search_extrinsic(
     min_translation_step_m=0.005,
     max_evaluations=2000,
     rotation_only=False,
+    time_offset_us=0,
 ):
     """Coordinate search, rotation first, then translation, then all six together.
 
@@ -134,7 +153,9 @@ def search_extrinsic(
         correction = np.zeros(6)
     else:
         correction = np.array(start_correction, dtype=np.float64)
-    best_score = total_score(sweeps, camera, corrected_extrinsic(T_start, correction))
+    best_score = total_score(
+        sweeps, camera, corrected_extrinsic(T_start, correction), time_offset_us
+    )
     history = [(correction.copy(), best_score)]
     evaluations = 1
 
@@ -161,7 +182,8 @@ def search_extrinsic(
                 for sign in (1.0, -1.0):
                     candidate = correction.copy()
                     candidate[parameter] += sign * steps[parameter]
-                    score = total_score(sweeps, camera, corrected_extrinsic(T_start, candidate))
+                    T_candidate = corrected_extrinsic(T_start, candidate)
+                    score = total_score(sweeps, camera, T_candidate, time_offset_us)
                     evaluations += 1
 
                     if score > best_score:
@@ -177,9 +199,20 @@ def search_extrinsic(
     return corrected_extrinsic(T_start, correction), history
 
 
-def calibrate(sweeps, camera, T_start, rotation_only=False):
-    """Grid search over rotation, then the local search from the best grid point."""
-    grid_correction, _ = grid_search_rotation(sweeps, camera, T_start)
+def calibrate(sweeps, camera, T_start, rotation_only=False, time_offset_us=0):
+    """Grid search over rotation, then the local search from the best grid point.
+
+    time_offset_us is added to the LiDAR point times before they are matched with
+    events, for data whose LiDAR clock runs behind the event camera.
+    """
+    grid_correction, _ = grid_search_rotation(
+        sweeps, camera, T_start, time_offset_us=time_offset_us
+    )
     return search_extrinsic(
-        sweeps, camera, T_start, start_correction=grid_correction, rotation_only=rotation_only
+        sweeps,
+        camera,
+        T_start,
+        start_correction=grid_correction,
+        rotation_only=rotation_only,
+        time_offset_us=time_offset_us,
     )

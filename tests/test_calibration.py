@@ -49,6 +49,7 @@ def make_sweep_edges(scene_points):
     )
     maps = TimedEventMaps(events, CAMERA.width, CAMERA.height, kind="idt", gamma=0.9)
     return SweepEdges(
+        stamp_us=0,
         points=scene_points,
         times_us=np.full(len(scene_points), 5000, dtype=np.int64),
         weights=np.ones(len(scene_points)),
@@ -120,3 +121,12 @@ def test_rotation_only_keeps_the_start_translation():
     correction = T_found @ invert(T_start)
     np.testing.assert_allclose(correction[:3, 3], 0.0, atol=1e-12)
     assert rotation_angle_deg((T_found @ invert(T_TRUE))[:3, :3]) < 0.3
+
+
+def test_time_offset_moves_points_away_from_their_events():
+    # The synthetic events fire between 0 and 10 ms and the points are stamped at
+    # 5 ms, so a 20 ms offset compares them with a moment when nothing fired.
+    sweeps = [make_sweep_edges(make_scene_points())]
+    in_sync = total_score(sweeps, CAMERA, T_TRUE, time_offset_us=0)
+    offset = total_score(sweeps, CAMERA, T_TRUE, time_offset_us=20_000)
+    assert in_sync > offset
