@@ -9,6 +9,7 @@ from lidar_event_extrinsics.geometry import (
     rotation_angle_deg,
     rotation_from_axis_angle,
     rotation_from_quaternion,
+    rotation_vector_from_matrix,
     transform_difference,
 )
 
@@ -60,3 +61,9 @@ def test_transform_difference():
     angle_deg, distance_m = transform_difference(T_a, T_b)
     assert angle_deg == pytest.approx(1.0)
     assert distance_m == pytest.approx(0.05)
+
+
+def test_rotation_vector_round_trip():
+    rotation_vector = np.array([0.1, -0.4, 0.25])
+    rotation = rotation_from_axis_angle(rotation_vector)
+    np.testing.assert_allclose(rotation_vector_from_matrix(rotation), rotation_vector, atol=1e-12)

@@ -90,6 +90,28 @@ def rotation_from_axis_angle(rotation_vector):
     return np.eye(3) + np.sin(angle) * axis_cross + (1 - np.cos(angle)) * axis_cross @ axis_cross
 
 
+def rotation_vector_from_matrix(rotation):
+    """Inverse of Rodrigues' formula, for rotations below 180 degrees.
+
+    The angle comes from the trace, and the axis from the antisymmetric part
+    R - R^T, which equals 2 sin(angle) times the cross-product matrix of the axis.
+    """
+    cos_angle = np.clip((np.trace(rotation) - 1.0) / 2.0, -1.0, 1.0)
+    angle = np.arccos(cos_angle)
+    if angle < 1e-12:
+        return np.zeros(3)
+
+    axis_times_sin = 0.5 * np.array(
+        [
+            rotation[2, 1] - rotation[1, 2],
+            rotation[0, 2] - rotation[2, 0],
+            rotation[1, 0] - rotation[0, 1],
+        ]
+    )
+    axis = axis_times_sin / np.sin(angle)
+    return angle * axis
+
+
 def rotation_angle_deg(rotation):
     # The angle of a rotation follows from its trace: trace(R) = 1 + 2 cos(angle).
     cos_angle = (np.trace(rotation) - 1.0) / 2.0

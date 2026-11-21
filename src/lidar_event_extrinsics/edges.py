@@ -199,6 +199,8 @@ class TimedEventMaps:
         if mean_value > 0:
             event_map = event_map / mean_value
 
+        # A search keeps hundreds of maps in memory, and float32 halves their size.
+        event_map = event_map.astype(np.float32)
         self.maps[bin_index] = event_map
         return event_map
 
@@ -214,6 +216,6 @@ class TimedEventMaps:
         for bin_index in np.unique(bin_of_point):
             in_bin = bin_of_point == bin_index
             event_map = self.map_for_bin(int(bin_index))
-            values = event_map[row[in_bin], column[in_bin]]
+            values = event_map[row[in_bin], column[in_bin]].astype(np.float64)
             total += np.sum(weights[in_bin] * values)
         return total / np.sum(weights)
