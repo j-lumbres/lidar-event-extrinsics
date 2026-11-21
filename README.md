@@ -148,6 +148,19 @@ VECtor describes its sensors as hardware synchronized, but the LiDAR stamps in b
 
 Splitting the sweeps by speed or by turning rate (`scripts/motion_checks.py`, at 0 ms) did not show a clean trend. The scooter pitch went from -1.00° on the slowest third to -0.25° on the fastest, and yaw and roll jumped by several degrees between thirds of 30 sweeps.
 
+## Joint estimate of offset and rotation
+
+A wrong offset also pulls the rotation, so fixing the offset at 90 ms by hand and then fitting the rotation can carry one error into the other. `scripts/joint_offset.py` calibrates the rotation from scratch at every candidate offset and keeps the pair with the highest score. A coarse pass covers -20 to +200 ms in 20 ms steps, and a fine pass covers ±16 ms around the best in 4 ms steps, on all sweeps and on each half. The translation stays at FARO.
+
+| Sequence | Offset, all / even / odd | Rotation from FARO, all sweeps | Score at 0 ms → best |
+|---|---|---|---|
+| `school_scooter1` (45 sweeps) | +92 / +92 / +88 ms | -0.50°, -1.13°, -0.38° | 2.152 → 2.838 |
+| `corridors_dolly1` (46 sweeps) | +44 / +44 / +44 ms | -0.50°, -1.13°, -1.13° | 3.157 → 3.722 |
+
+Pitch and yaw now come out the same on both sequences, -0.50° and -1.13° from FARO, and the halves of each sequence stay within 0.13° in yaw. Roll still disagrees, at -0.38° on the scooter and -0.38° to -1.13° across the dolly halves, so the rotation about the optical axis is the part edge alignment does not pin down.
+
+The offsets do not match. The scooter run, recorded on 2022-02-20, settles at about 90 ms, and the dolly run, recorded on 2022-01-25, at about 44 ms. The dolly curve also has a second peak at +120 ms (3.614 against 3.663 at +40 ms in the coarse pass). The gyro check gave lags of 135 and 120 ms, 15 ms apart rather than 46, so the size of the offset on the dolly run is less certain than on the scooter. Either way the LiDAR offset does not look like one fixed constant of the rig, which means it has to be estimated per recording.
+
 ## Tests
 
 ```
