@@ -33,6 +33,38 @@ The bag stores points in the Ouster `os_sensor` frame. The other Ouster frame, `
 
 The turned frame scores about 1, which is what edges placed at random would get, so the extrinsics apply to the points as published. The score is noisy on single sweeps, and many sweeps sit near 1 with either frame. The CAD extrinsic scores higher than FARO on the last 4 s of the sequence, which the edge alignment step will have to explain.
 
+## Edge maps
+
+The visible part of a sweep is captured over about 29 ms while the sensor moves, so each edge point is compared with events from 2 ms bins around its own capture time, using the events within 3 ms of the bin center.
+
+A blurred event count only rewards edges that land within a pixel or two of an event, so the score at the FARO extrinsic was no better than at extrinsics rotated by 1° or shifted by 5 cm. The fix follows Levinson and Thrun (RSS 2013). Each LiDAR point is weighted by how much nearer it is than its horizontal neighbors,
+
+```math
+w_i = \max(r_{\mathrm{left}} - r_i,\; r_{\mathrm{right}} - r_i)^{1/2},
+```
+
+keeping jumps above 0.2 m. The capped event count $`E`$ is spread into an inverse distance map
+
+```math
+D(p) = \alpha E(p) + (1 - \alpha) \max_q E(q)\, \gamma^{\lVert p - q \rVert_1},
+```
+
+with $`\alpha = 1/3`$ and $`\gamma = 0.9`$, so a point a few pixels off an edge still scores. The score of a sweep is $`\sum_i w_i D(p_i) / \sum_i w_i`$, with each map divided by its mean.
+
+`scripts/compare_edge_maps.py` rotates the FARO extrinsic about each camera axis and shifts it along each axis, and averages the score over every 10th sweep.
+
+| Rotation about x (deg) | -8 | -4 | -2 | -1 | 0 | 1 | 2 | 4 | 8 |
+|---|---|---|---|---|---|---|---|---|---|
+| Blurred count | 1.34 | 1.68 | 2.09 | 2.03 | 2.25 | 1.97 | 1.87 | 2.05 | 2.04 |
+| Inverse distance | 1.58 | 1.89 | 2.06 | 2.06 | 2.08 | 2.03 | 1.96 | 1.92 | 1.73 |
+
+| Rotation about y (deg) | -8 | -4 | -2 | -1 | 0 | 1 | 2 | 4 | 8 |
+|---|---|---|---|---|---|---|---|---|---|
+| Blurred count | 2.13 | 2.34 | 2.58 | 3.00 | 2.25 | 2.63 | 2.81 | 2.60 | 1.71 |
+| Inverse distance | 1.84 | 1.99 | 2.11 | 2.14 | 2.08 | 2.04 | 2.03 | 1.99 | 1.61 |
+
+With the inverse distance map both curves have one peak, at 0° about x and at -1° about y, and fall off on both sides. The blurred count jumps up and down between neighboring angles. Rotation about the optical axis z is flat between -2° and 5°, and shifts of up to 30 cm change the score by at most 12%. The shift along z peaks at 15 to 20 cm rather than at 0. A few centimeters at 5 to 10 m move a point by only 2 to 3 pixels, so the translation is weakly observable from edges alone. The time surface scored like the blurred count.
+
 ## Tests
 
 ```
