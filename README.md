@@ -114,6 +114,40 @@ The table gives the median rotation from FARO over each set of trials. On `corri
 
 Yaw and roll move the same way on both sequences. Yaw lands at -0.5° to -0.8°, close to the CAD value of -0.69°, which suggests the FARO yaw is off by about that much. Roll lands at -1.2° to -1.6° on both, but it is the loosest axis in every test, so that agreement is weaker evidence. Pitch disagrees by 1.2°, so the -1.2° pitch on `school_scooter1` is not a property of the rig. The faster, bumpier scooter run is a likely cause, since motion that the score does not model would show up there first.
 
+## Time offset
+
+The score compares each LiDAR point with events from around its own capture time, so the 100 ms a sweep takes is already handled and deskewing the sweep with the IMU would not change it. What can still go wrong is the clock. If the LiDAR times are off against the event camera, every point is compared with events from the wrong moment, and the error grows with speed.
+
+`scripts/time_offset.py` checks the clock in three ways.
+
+The ground-truth poses carry the LiDAR timestamps. Their turning rate is compared with the IMU gyro averaged over the same 100 ms, shifted by lags from -300 to +300 ms. This uses neither the extrinsic nor the events.
+
+| Sequence | Best lag | Gyro error at 0 ms | Gyro error at best lag |
+|---|---|---|---|
+| `school_scooter1` | +135 ms | 6.21 °/s | 2.26 °/s |
+| `corridors_dolly1` | +120 ms | 3.48 °/s | 3.24 °/s |
+
+Part of this lag may be a convention of the ground truth, since a pose fitted to a whole sweep can describe its middle or end while carrying the stamp of its start. That would account for 50 to 100 ms at most.
+
+The edge score at the FARO extrinsic, with the LiDAR point times shifted by -100 to +250 ms, peaks at +90 ms on `school_scooter1` (2.371 against 2.066 at 0 ms) and falls off on both sides. On the slower `corridors_dolly1` the curve is noisier, with its highest points at +40 and +120 ms.
+
+Calibrating again with the LiDAR times shifted by +90 ms changes the result. Rotations are from FARO, with the translation held at FARO.
+
+| Run | 0 ms | +90 ms |
+|---|---|---|
+| `school_scooter1`, all | -1.25°, -1.75°, +0.63° (2.152) | -0.50°, -1.13°, -0.38° (2.855) |
+| `school_scooter1`, even half | -1.00°, -2.00°, +1.13° (2.214) | -0.50°, -1.13°, -0.38° (2.871) |
+| `school_scooter1`, odd half | -1.00°, -0.38°, -3.00° (2.201) | -0.50°, -1.13°, -0.38° (2.839) |
+| `corridors_dolly1`, all | 0.00°, -0.75°, -2.00° (3.157) | +0.50°, -0.88°, -1.00° (3.547) |
+| `corridors_dolly1`, even half | -0.25°, -1.00°, -2.75° (3.156) | -0.88°, -1.00°, -1.00° (3.596) |
+| `corridors_dolly1`, odd half | 0.00°, -0.75°, +1.13° (3.286) | +0.13°, -0.88°, -1.25° (3.536) |
+
+Scores are in brackets. At +90 ms the two halves of `school_scooter1` land on the same rotation, where at 0 ms they were 3.6° apart in roll, and the score rises by a third. The scooter moves at about 2.6 m/s against 0.9 m/s for the dolly, so the clock error hurt it most, and that explains the sweep-dependent results in the sections above. With the offset, yaw agrees across both sequences at -0.9° to -1.1° from FARO, which suggests the FARO yaw is off by about 1°. Roll lands at -0.4° on the scooter and -1.0° to -1.25° on the dolly, and pitch on the dolly still moves between -0.9° and +0.5° across halves.
+
+VECtor describes its sensors as hardware synchronized, but the LiDAR stamps in both sequences behave as if they run roughly 90 ms, close to one revolution, behind the event camera and the IMU. For this data the clock matters more than any 1° error in the extrinsic.
+
+Splitting the sweeps by speed or by turning rate (`scripts/motion_checks.py`, at 0 ms) did not show a clean trend. The scooter pitch went from -1.00° on the slowest third to -0.25° on the fastest, and yaw and roll jumped by several degrees between thirds of 30 sweeps.
+
 ## Tests
 
 ```
