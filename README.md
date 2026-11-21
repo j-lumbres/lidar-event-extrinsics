@@ -82,6 +82,24 @@ All four runs move the pitch (rotation about x) by -1.0° to -1.25° from FARO. 
 
 Adding range jumps between neighboring beams, to get horizontal edges that might constrain roll, made the score flat: the best grid point moved to the edge of the grid. A beam hitting the floor or ceiling at a grazing angle lands far from the beam next to it even on a flat surface, so those jumps mark smooth surfaces as edges.
 
+## Perturb and recover
+
+`scripts/perturb_and_recover.py` starts the calibration from the FARO extrinsic moved by a known amount and records where it lands. With all six parameters free there are 40 trials: rotations of 0.5°, 1°, 2°, and 3°, translations of 2, 5, and 10 cm, and 2° with 5 cm together, five of each with random directions.
+
+None of the 40 trials lands within 0.5° of the run started from FARO itself. Most of them gather somewhere else, at a median rotation of (-0.97°, -0.55°, -1.01°) from FARO. The translation does not come back. It ends 0.6 to 27 cm from where the reference run ends, whatever the start was, and its drift pulls the rotation around with it.
+
+With the translation held at its start (`ROTATION_ONLY=1`), the 20 rotation trials gather much more tightly.
+
+| Axis | Median from FARO | Middle half of trials | Range |
+|---|---|---|---|
+| x (pitch) | -1.16° | -1.25° to -0.62° | -1.34° to +0.27° |
+| y (yaw) | -0.52° | -0.64° to -0.46° | -1.85° to -0.36° |
+| z (roll) | -1.20° | -1.61° to -0.77° | -1.98° to +1.23° |
+
+Their final scores have a median of 2.198, above the 2.152 of the run started from FARO, so that run had stopped on a local bump and the cluster is the real peak of the score. Starts up to 3° away find the same peak, and yaw is pinned to within about 0.2° in most trials.
+
+The peak sits about 1.8° from FARO and 1.5° from CAD. At the event camera focal length of 327 px, that moves edges by 3 to 7 px in an overlay, too little to judge by eye which one fits the events better. This test shows that the search finds the same answer from different starts. It cannot show whether that answer is the true extrinsic, because the score could favor a slightly wrong rotation, for example through the weighting of edges that the event camera never sees. The translation has to come from somewhere other than edge alignment in this sequence.
+
 ## Tests
 
 ```
