@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lidar-event-extrinsics"
+version = "0.0.1"
+description = "Targetless correction of the LiDAR to event camera extrinsic"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Jillian Lumbres" }]
+license = { text = "MIT" }
+dependencies = [
+    "numpy>=1.24",
+    "h5py>=3.8",
+    "hdf5plugin>=4.0",
+    "rosbags>=0.9",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5", "opencv-python-headless>=4.8"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "NPY"]

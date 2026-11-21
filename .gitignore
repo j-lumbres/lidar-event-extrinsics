@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.venv/
+build/
+dist/
+.DS_Store
+
+# Datasets are large and downloaded by hand, never committed.
+data/
