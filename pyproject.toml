@@ -16,6 +16,7 @@ dependencies = [
     "hdf5plugin>=4.0",
     "rosbags>=0.9",
     "pyyaml>=6.0",
+    "scipy>=1.10",
 ]
 
 [project.optional-dependencies]

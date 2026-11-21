@@ -132,6 +132,14 @@ class Events:
     def __len__(self):
         return len(self.t_us)
 
+    def slice(self, first, last):
+        return Events(
+            x=self.x[first:last],
+            y=self.y[first:last],
+            t_us=self.t_us[first:last],
+            polarity=self.polarity[first:last],
+        )
+
 
 def open_event_file(event_path):
     # VECtor compresses events with Zstandard. Importing hdf5plugin registers that
