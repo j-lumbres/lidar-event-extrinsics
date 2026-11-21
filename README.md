@@ -65,6 +65,23 @@ with $`\alpha = 1/3`$ and $`\gamma = 0.9`$, so a point a few pixels off an edge 
 
 With the inverse distance map both curves have one peak, at 0° about x and at -1° about y, and fall off on both sides. The blurred count jumps up and down between neighboring angles. Rotation about the optical axis z is flat between -2° and 5°, and shifts of up to 30 cm change the score by at most 12%. The shift along z peaks at 15 to 20 cm rather than at 0. A few centimeters at 5 to 10 m move a point by only 2 to 3 pixels, so the translation is weakly observable from edges alone. The time surface scored like the blurred count.
 
+## Search
+
+A candidate extrinsic is a correction applied in the event camera frame, a rotation vector and a translation, on top of a starting extrinsic. The score of a candidate is the edge score averaged over every 10th sweep (45 sweeps), since single sweeps are too noisy. The search first tries every rotation on a grid of ±4° in 1° steps around the start (729 candidates), because a local search from a poor start stops on the first bump in the score. From the best grid point a coordinate search nudges each parameter up and down, keeps any move that raises the score, and halves the steps when none does. It refines rotation first, then translation, then all six together.
+
+`scripts/run_search.py` runs the calibration from the FARO and CAD extrinsics on all 45 sweeps, and from FARO on the even and odd halves. Results are corrections to the FARO extrinsic in event camera axes.
+
+| Run | Rotation x, y, z (deg) | Translation x, y, z (cm) | Score start → end |
+|---|---|---|---|
+| All, from FARO | -1.25, -1.75, +0.63 | 0.0, 0.0, +0.6 | 2.085 → 2.155 |
+| All, from CAD | -0.99, -0.56, -0.49 | -0.1, -5.3, +2.6 | 2.172 → 2.214 |
+| Even half, from FARO | -1.00, -2.00, +1.00 | 0.0, 0.0, +1.3 | 2.066 → 2.229 |
+| Odd half, from FARO | -1.13, -0.38, -2.88 | +3.7, -1.2, +6.3 | 2.104 → 2.265 |
+
+All four runs move the pitch (rotation about x) by -1.0° to -1.25° from FARO. Yaw lands anywhere from -2.0° to -0.4°, roll from -2.9° to +1.0°, and the translation mostly stays wherever it started. The CAD extrinsic differs from FARO by 0.78° and 5.9 cm, which is inside this spread, so the method cannot yet tell the two apart. The CAD translation also scores higher than the FARO one, and the local search from FARO does not reach it, since it needs a move along y and z together.
+
+Adding range jumps between neighboring beams, to get horizontal edges that might constrain roll, made the score flat: the best grid point moved to the edge of the grid. A beam hitting the floor or ceiling at a grazing angle lands far from the beam next to it even on a flat surface, so those jumps mark smooth surfaces as edges.
+
 ## Tests
 
 ```
