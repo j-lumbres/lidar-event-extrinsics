@@ -1,12 +1,29 @@
 # LiDAR to event camera extrinsics
 
-This is a work in progress. It corrects the extrinsic between a LiDAR and an event camera without a calibration target, by aligning depth edges in the LiDAR scan with edges in the event stream.
+This project corrects the extrinsic between a LiDAR and an event camera without a calibration target, by aligning depth edges in the LiDAR scan with edges in the event stream. The extrinsic is the rigid transform $`T_{\mathrm{camera} \leftarrow \mathrm{lidar}}`$ that moves a LiDAR point into the camera frame. A small error in it shifts projected depth away from the edges the event camera sees.
 
-The extrinsic is the rigid transform $`T_{\mathrm{camera} \leftarrow \mathrm{lidar}}`$ that moves a LiDAR point into the camera frame. A small error in it shifts projected depth away from the edges the event camera sees. The method searches over a 6-DoF correction for the one that best lines the two up, and it is tested by perturbing a known extrinsic and measuring how much of the perturbation is recovered.
+## Results
+
+Two sequences of [VECtor](https://star-datasets.github.io/vector/) were used, `school_scooter1` and `corridors_dolly1`. The time offset between the LiDAR and the event camera and the rotation correction to the FARO extrinsic were estimated together, with the translation held at FARO.
+
+| Sequence | LiDAR time offset | Rotation from FARO (x, y, z) | Score at 0 ms and FARO → best |
+|---|---|---|---|
+| `school_scooter1` | +92 ms | -0.50°, -1.13°, -0.38° | 2.152 → 2.838 |
+| `corridors_dolly1` | +44 ms | -0.50°, -1.13°, -1.13° | 3.157 → 3.722 |
+
+The main findings are these.
+
+1. **The LiDAR clock is off.** The LiDAR stamps run behind the event camera by about 90 ms on `school_scooter1` and about 44 ms on `corridors_dolly1`, although VECtor lists the sensors as hardware synchronized. The offset differs between recordings, so it has to be estimated for each one. Correcting it raised the edge score by 32% and 18%, more than any rotation change did at 0 ms.
+2. **FARO is off by about 0.5° in pitch and 1.1° in yaw.** Both sequences give the same pitch and yaw once the offset is corrected, and the even and odd halves of each sequence agree within 0.13° in yaw.
+3. **Roll and translation are not observable from edges here.** Roll lands between -0.38° and -1.13° depending on the sequence and the half. Shifts of up to 30 cm change the score by at most 12%, so the translation is left at FARO.
+
+The offset on `corridors_dolly1` is less certain than on the scooter. Its score curve has a second peak at +120 ms that scores within 1.5% of the best, and the gyro check below puts the two sequences only 15 ms apart.
+
+The sections below follow the order in which the work was done. Everything before [Time offset](#time-offset) was computed with the LiDAR stamps taken as published, so the rotations reported there carry the clock error.
 
 ## Data
 
-The data is the `school_scooter1` sequence of [VECtor](https://star-datasets.github.io/vector/), which has two Prophesee event cameras (640 x 480) and an Ouster OS0-128 LiDAR. The files go in `data/raw/vector/`, and the calibration results in `data/raw/vector/calib/`.
+The data is the `school_scooter1` and `corridors_dolly1` sequences of VECtor, which has two Prophesee event cameras (640 x 480) and an Ouster OS0-128 LiDAR. The files go in `data/raw/vector/`, and the calibration results in `data/raw/vector/calib/`.
 
 ## Loading VECtor
 
