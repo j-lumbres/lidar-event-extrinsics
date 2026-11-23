@@ -11,6 +11,10 @@ Two sequences of [VECtor](https://star-datasets.github.io/vector/) were used, `s
 | `school_scooter1` | +92 ms | -0.50°, -1.13°, -0.38° | 2.152 → 2.838 |
 | `corridors_dolly1` | +44 ms | -0.50°, -1.13°, -1.13° | 3.157 → 3.722 |
 
+![LiDAR depth edges on events before and after the fix](figures/overlay.png)
+
+LiDAR depth edges projected into the event camera, over the events recorded when the LiDAR scanned each image column. With the stamps as published (left), the edges miss the door frames by several pixels. With the +92 ms offset and the corrected rotation (right), they sit on them. The sweep shown is the one, of the 45 used, where the score rises most. `scripts/overlay_figure.py` makes the figure.
+
 The main findings are these.
 
 1. **The LiDAR clock is off.** The LiDAR stamps run behind the event camera by about 90 ms on `school_scooter1` and about 44 ms on `corridors_dolly1`, although VECtor lists the sensors as hardware synchronized. The offset differs between recordings, so it has to be estimated for each one. Correcting it raised the edge score by 32% and 18%, more than any rotation change did at 0 ms.
