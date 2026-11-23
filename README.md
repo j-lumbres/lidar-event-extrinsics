@@ -48,7 +48,7 @@ The bag stores points in the Ouster `os_sensor` frame. The other Ouster frame, `
 | FARO | 1.83 | 1.09 | 31 of 42 |
 | CAD | 1.49 | 1.00 | 24 of 43 |
 
-The turned frame scores about 1, which is what edges placed at random would get, so the extrinsics apply to the points as published. The score is noisy on single sweeps, and many sweeps sit near 1 with either frame. The CAD extrinsic scores higher than FARO on the last 4 s of the sequence, which the edge alignment step will have to explain.
+The turned frame scores about 1, which is what edges placed at random would get, so the extrinsics apply to the points as published. The score is noisy on single sweeps, and many sweeps sit near 1 with either frame. The CAD extrinsic scores higher than FARO on the last 4 s of the sequence.
 
 ## Edge maps
 
@@ -97,7 +97,7 @@ A candidate extrinsic is a correction applied in the event camera frame, a rotat
 
 All four runs move the pitch (rotation about x) by -1.0° to -1.25° from FARO. Yaw lands anywhere from -2.0° to -0.4°, roll from -2.9° to +1.0°, and the translation mostly stays wherever it started. The CAD extrinsic differs from FARO by 0.78° and 5.9 cm, which is inside this spread, so the method cannot yet tell the two apart. The CAD translation also scores higher than the FARO one, and the local search from FARO does not reach it, since it needs a move along y and z together.
 
-Adding range jumps between neighboring beams, to get horizontal edges that might constrain roll, made the score flat: the best grid point moved to the edge of the grid. A beam hitting the floor or ceiling at a grazing angle lands far from the beam next to it even on a flat surface, so those jumps mark smooth surfaces as edges.
+Adding range jumps between neighboring beams, to get horizontal edges that might constrain roll, made the score flat, and the best grid point moved to the edge of the grid. A beam hitting the floor or ceiling at a grazing angle lands far from the beam next to it even on a flat surface, so those jumps mark smooth surfaces as edges.
 
 ## Perturb and recover
 
